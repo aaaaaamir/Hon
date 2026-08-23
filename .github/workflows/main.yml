@@ -20,14 +20,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
           channel: 'stable'
           cache: true
 
       - run: flutter pub get
 
-      # با نبود signing config سفارشی، فلاتر خودش برای ریلیز از
-      # کلید دیباگ استفاده می‌کنه (برای تست کافیه)
       - run: flutter build apk --release
 
       - name: Move APK to output folder
