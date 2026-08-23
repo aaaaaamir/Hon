@@ -106,6 +106,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     TextField(
                       controller: userCtrl,
                       textAlign: TextAlign.right,
+                      style: const TextStyle(color: AppColors.text, fontSize: 15),
+                      cursorColor: AppColors.accent,
                       decoration: const InputDecoration(hintText: 'شناسه کاربری'),
                     ),
                     const SizedBox(height: 10),
@@ -113,6 +115,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       controller: passCtrl,
                       obscureText: obscurePass,
                       textAlign: TextAlign.right,
+                      style: const TextStyle(color: AppColors.text, fontSize: 15),
+                      cursorColor: AppColors.accent,
                       onSubmitted: (_) { if (isLogin) _submit(); },
                       decoration: InputDecoration(
                         hintText: 'رمز عبور',
@@ -129,6 +133,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         controller: passConfirmCtrl,
                         obscureText: obscurePass,
                         textAlign: TextAlign.right,
+                        style: const TextStyle(color: AppColors.text, fontSize: 15),
+                        cursorColor: AppColors.accent,
                         onSubmitted: (_) => _submit(),
                         decoration: const InputDecoration(hintText: 'تکرار رمز عبور'),
                       ),
