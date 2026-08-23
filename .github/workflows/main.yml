@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: my_project
+        working-directory: hon
     steps:
       - uses: actions/checkout@v4
       
