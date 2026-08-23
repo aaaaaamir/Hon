@@ -1,17 +1,74 @@
-# hon
+# چت (Flutter)
 
-A new Flutter project.
+بازنویسی اپ پیام‌رسان از `index.html` به یک اپ فلاتر کامل، با همون بک‌اند (REST + WebSocket).
 
-## Getting Started
+## چیزهایی که عوض شده
 
-This project is a starting point for a Flutter application.
+- **زبان و پلتفرم:** کل رابط کاربری از HTML/JS تک‌فایلی به یک پروژه‌ی فلاتر چندفایلی و مرتب (مدل/سرویس/state/صفحه‌ها) تبدیل شده — برای اندروید و iOS آماده‌ست.
+- **آدرس سرور:** در `lib/config.dart` روی `chat.idothis.ir` تنظیم شده (هم REST روی `https://` و هم وب‌سوکت روی `wss://`).
+- **پنل مدیریت حذف شد:** هیچ صفحه، دکمه یا تماس شبکه‌ای مربوط به `/admin` و `/api/admin/*` در این نسخه وجود نداره؛ اپ فقط شامل تجربه‌ی کاربر عادی است.
+- **UI/UX:**
+  - تم تیره‌ی Material 3 با همون پالت رنگی نسخه‌ی وب (آبی/بنفش گرادیانی) ولی با کنتراست و فاصله‌گذاری بهتر.
+  - فونت وزیرمتن از طریق `google_fonts`.
+  - ناوبری پایین با ۴ تب: گفتگوها، مخاطبین، اعلان‌ها (با نشان تعداد)، پروفایل.
+  - لیست ترکیبی گفتگوهای خصوصی و گروهی، مرتب‌شده بر اساس آخرین پیام، با جستجوی زنده.
+  - حباب پیام با پشتیبانی از پاسخ (Reply)، وضعیت ارسال (در انتظار/رسیده)، و لغزش نرم.
+  - نشانگر وضعیت اتصال (متصل/در حال اتصال/قطع) با رنگ.
+  - مدیریت بلاک/رفع‌بلاک و گزارش کاربر از داخل صفحه‌ی چت.
+  - **ارسال عکس:** دکمه‌ی تصویر کنار نوار پیام (چت خصوصی و گروهی)؛ پیش‌نمایش محلی فوری، نشانگر آپلود، و حالت خطا با امکان مشاهده‌ی تمام‌صفحه با زوم بعد از تکمیل آپلود.
+  - **نشانگر «در حال نوشتن...»:** در چت خصوصی زیر نام طرف مقابل، و در چت گروهی زیر نام گروه (با اسامی چند نفر هم‌زمان)، دقیقاً با همون منطق شروع/توقف نسخه‌ی وب (توقف خودکار بعد از ۴ ثانیه بی‌حرکتی طرف مقابل، و ارسال stop بعد از ۲.۵ ثانیه سکوت خودمون).
 
-A few resources to get you started if this is your first Flutter project:
+## اجرا
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+پیش‌نیاز: نصب [Flutter SDK](https://docs.flutter.dev/get-started/install).
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```bash
+# ۱) یک پروژه‌ی فلاتر خالی بساز (برای گرفتن پوشه‌های android/ios/...)
+flutter create hon_chat
+cd hon_chat
+
+# ۲) فایل‌های این پکیج (پوشه‌ی lib و pubspec.yaml) رو جایگزین همون فایل‌ها در پروژه کن
+
+# ۳) بسته‌ها رو نصب کن
+flutter pub get
+
+# ۴) اجرا
+flutter run
+```
+
+### مجوز دسترسی به گالری (برای ارسال عکس)
+
+پکیج `image_picker` روی اندروید معمولاً نیازی به تنظیم دستی مجوز نداره (خودش موقع build اضافه می‌کنه)،
+ولی روی iOS باید این دو کلید رو به `ios/Runner/Info.plist` اضافه کنی:
+
+```xml
+<key>NSPhotoLibraryUsageDescription</key>
+<string>برای ارسال عکس در چت به گالری نیاز است</string>
+<key>NSCameraUsageDescription</key>
+<string>برای گرفتن عکس در چت به دوربین نیاز است</string>
+```
+
+
+
+## ساختار
+
+```
+lib/
+  config.dart          # آدرس سرور و تنظیمات ثابت
+  theme.dart            # پالت رنگ و تم Material 3
+  main.dart              # نقطه‌ی ورود و مسیر بین اسپلش/ورود/خانه
+  models/                # مدل‌های پیام، مکالمه، گروه، اعلان
+  services/
+    api_service.dart     # تمام تماس‌های REST (بدون admin)
+    ws_service.dart       # اتصال وب‌سوکت با reconnect خودکار
+    storage_service.dart  # ذخیره‌ی توکن/نام‌کاربری برای ورود خودکار
+  state/app_state.dart    # مدیریت وضعیت مرکزی (Provider/ChangeNotifier)
+  screens/                # صفحات: ورود، لیست چت، چت خصوصی/گروهی، مخاطبین، اعلان‌ها، پروفایل
+  widgets/                 # آواتار، ردیف مکالمه، حباب پیام
+```
+
+## نکته درباره‌ی سرور
+
+اگر endpointهای واقعی سرور (نام فیلدها یا مسیرها) کمی با چیزی که اینجا فرض شده فرق دارن،
+فقط کافیه `lib/services/api_service.dart` و پردازش پیام‌های وب‌سوکت در `lib/state/app_state.dart`
+(متد `_handleWsMessage`) رو مطابق پاسخ واقعی سرور تنظیم کنی؛ بقیه‌ی اپ (UI و state) دست‌نخورده می‌مونه.
