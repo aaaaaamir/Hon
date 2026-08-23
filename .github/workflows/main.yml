@@ -26,12 +26,10 @@ jobs:
 
       - run: flutter pub get
 
-      # ساخت APK ریلیز. چون keystore واقعی تنظیم نشده، فلاتر به‌صورت
-      # پیش‌فرض از کلید دیباگ استفاده می‌کنه (برای تست کافیه، ولی
-      # برای انتشار روی گوگل‌پلی باید بعداً کلید امضای واقعی جایگزین بشه)
-      - run: flutter build apk --release --debug
+      # با نبود signing config سفارشی، فلاتر خودش برای ریلیز از
+      # کلید دیباگ استفاده می‌کنه (برای تست کافیه)
+      - run: flutter build apk --release
 
-      # کپی خروجی به یک پوشه‌ی مستقل بیرون از پوشه‌ی پروژه (ریشه‌ی ریپو)
       - name: Move APK to output folder
         working-directory: ${{ github.workspace }}
         run: |
