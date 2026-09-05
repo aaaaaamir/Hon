@@ -10,9 +10,12 @@ import 'screens/splash_screen.dart';
 
 void main() {
   // به‌جای جعبه‌ی خاکستری پیش‌فرض برای خطاهای build یه ویجت،
-  // فقط یه آیکون کوچیک قرمز نشون بده؛ متن کامل خطا میره تو بنر بالای صفحه
+  // فقط یه آیکون کوچیک قرمز نشون بده؛ متن کامل خطا + stack trace
+  // میره تو بنر بالای صفحه
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    reportGlobalError(details.exceptionAsString());
+    reportGlobalError(
+      '${details.exceptionAsString()}\n\n--- STACK TRACE ---\n${details.stack}',
+    );
     return Container(
       alignment: Alignment.center,
       padding: const EdgeInsets.all(8),
@@ -24,14 +27,16 @@ void main() {
   // خطاهای فریم‌ورک (build / layout / paint) رو می‌گیره
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    reportGlobalError(details.exceptionAsString());
+    reportGlobalError(
+      '${details.exceptionAsString()}\n\n--- STACK TRACE ---\n${details.stack}',
+    );
   };
 
   runZonedGuarded(() {
     runApp(const HonChatApp());
   }, (error, stack) {
     // خطاهای async که فریم‌ورک به‌تنهایی نمی‌گیرتشون
-    reportGlobalError('$error');
+    reportGlobalError('$error\n\n--- STACK TRACE ---\n$stack');
   });
 }
 
@@ -50,7 +55,7 @@ class HonChatApp extends StatelessWidget {
         supportedLocales: const [Locale('fa', 'IR'), Locale('en', 'US')],
         builder: (context, child) => Directionality(
           textDirection: TextDirection.rtl,
-          child: ErrorBannerOverlay(child: child!),
+          child: ErrorBannerOverlay(child: child ?? const SizedBox.shrink()),
         ),
         home: const _RootGate(),
       ),
@@ -58,7 +63,6 @@ class HonChatApp extends StatelessWidget {
   }
 }
 
-/// بر اساس وضعیت ورود کاربر، صفحه‌ی مناسب را نشان می‌دهد.
 class _RootGate extends StatelessWidget {
   const _RootGate();
 
