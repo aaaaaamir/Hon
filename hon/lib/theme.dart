@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// پالت رنگی الهام‌گرفته از نسخه‌ی وب، با کمی بهبود کنتراست برای Material 3.
 class AppColors {
@@ -33,7 +32,11 @@ class AppColors {
 
 ThemeData buildAppTheme() {
   final base = ThemeData.dark(useMaterial3: true);
-  final textTheme = GoogleFonts.vazirmatnTextTheme(base.textTheme).apply(
+
+  // به‌جای دانلود فونت وزیرمتن از اینترنت (که در شبکه‌های فیلترشده ممکنه
+  // گیر کنه و باعث کرش/جعبه‌ی خاکستری بشه)، از فونت پیش‌فرض سیستم استفاده
+  // می‌کنیم که همیشه در دسترسه و از فارسی هم به‌خوبی پشتیبانی می‌کنه.
+  final textTheme = base.textTheme.apply(
     bodyColor: AppColors.text,
     displayColor: AppColors.text,
   );
