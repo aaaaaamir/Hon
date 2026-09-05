@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'error_overlay.dart';
 import 'state/app_state.dart';
@@ -9,9 +10,6 @@ import 'screens/home_screen.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
-  // به‌جای جعبه‌ی خاکستری پیش‌فرض برای خطاهای build یه ویجت،
-  // فقط یه آیکون کوچیک قرمز نشون بده؛ متن کامل خطا + stack trace
-  // میره تو بنر بالای صفحه
   ErrorWidget.builder = (FlutterErrorDetails details) {
     reportGlobalError(
       '${details.exceptionAsString()}\n\n--- STACK TRACE ---\n${details.stack}',
@@ -24,7 +22,6 @@ void main() {
     );
   };
 
-  // خطاهای فریم‌ورک (build / layout / paint) رو می‌گیره
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     reportGlobalError(
@@ -35,7 +32,6 @@ void main() {
   runZonedGuarded(() {
     runApp(const HonChatApp());
   }, (error, stack) {
-    // خطاهای async که فریم‌ورک به‌تنهایی نمی‌گیرتشون
     reportGlobalError('$error\n\n--- STACK TRACE ---\n$stack');
   });
 }
@@ -53,6 +49,11 @@ class HonChatApp extends StatelessWidget {
         theme: buildAppTheme(),
         locale: const Locale('fa', 'IR'),
         supportedLocales: const [Locale('fa', 'IR'), Locale('en', 'US')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         builder: (context, child) => Directionality(
           textDirection: TextDirection.rtl,
           child: ErrorBannerOverlay(child: child ?? const SizedBox.shrink()),
