@@ -1,0 +1,121 @@
+name: Analyze
+
+on:
+  push:
+    branches: [ "arena/a6874564-hon" ]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hon
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - run: flutter pub get
+
+      - name: flutter analyze
+        run: |
+          set +e
+          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings > /tmp/analyze.log 2>&1
+          CODE=$?
+          cat /tmp/analyze.log
+          echo "ANALYZE_EXIT=$CODE"
+          echo "ANALYZE_EXIT=$CODE" >> /tmp/analyze.log
+          exit $CODE
+
+      - name: annotate analyze errors
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import re
+          try:
+              text = open("/tmp/analyze.log", encoding="utf-8", errors="replace").read()
+          except FileNotFoundError:
+              raise SystemExit(0)
+          lines = text.splitlines()
+          errors = 0
+          for line in lines:
+              m = re.search(r'\b(error)\b\s*\u2022\s*(.*?)\s*\u2022\s*([\w./\\-]+):(\d+)(?::(\d+))?', line)
+              if m:
+                  errors += 1
+                  print("::error file=%s::flutter analyze: %s" % (m.group(3), m.group(2)))
+          if errors == 0 and 'ANALYZE_EXIT=0' not in text:
+              for l in lines[-25:]:
+                  if l.strip():
+                      print("::error::analyze log: " + l.strip()[:300])
+          if errors:
+              print("::error::flutter analyze: %d error(s)" % errors)
+          PY
+
+      - name: build apk
+        if: always()
+        run: |
+          set +e
+          flutter build apk --debug > /tmp/build.log 2>&1
+          CODE=$?
+          echo "---- build log tail ----"
+          tail -n 60 /tmp/build.log
+          echo "BUILD_EXIT=$CODE"
+          echo "BUILD_EXIT=$CODE" >> /tmp/build.log
+          exit $CODE
+
+      - name: annotate build errors
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import re
+          try:
+              text = open("/tmp/build.log", encoding="utf-8", errors="replace").read()
+          except FileNotFoundError:
+              raise SystemExit(0)
+          lines = text.splitlines()
+          annotated = 0
+          for line in lines:
+              m = re.match(r'\s*e:\s*(.+)$', line)
+              if m and annotated < 25:
+                  print("::error::kotlin: " + m.group(1).strip())
+                  annotated += 1
+              elif re.match(r'^Error: ', line) and annotated < 25:
+                  print("::error::dart: " + line.strip())
+                  annotated += 1
+              elif re.match(r'^[\w./\\-]+\.dart:\d+:\d+', line) and annotated < 25:
+                  print("::error::dart at " + line.strip())
+                  annotated += 1
+          try:
+              start = next(i for i, l in enumerate(lines) if 'What went wrong' in l)
+              end = next((i for i, l in enumerate(lines[start:], start) if 'Try:' in l), start + 20)
+              for l in lines[start:end]:
+                  if annotated < 35 and l.strip():
+                      print("::error::gradle: " + l.strip())
+                      annotated += 1
+          except StopIteration:
+              pass
+          except Exception:
+              pass
+          if annotated == 0 and 'BUILD_EXIT=0' not in text:
+              for l in lines[-25:]:
+                  if l.strip():
+                      print("::error::build log: " + l.strip()[:300])
+          PY
+
+      - name: upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-logs
+          path: |
+            /tmp/analyze.log
+            /tmp/build.log

@@ -261,6 +261,9 @@ class AppState extends ChangeNotifier {
     final idx = conversations.indexWhere((c) => c.username == username);
     if (idx >= 0) conversations[idx].unreadCount = 0;
     notifyListeners();
+    // تاریخچه فقط یک‌بار در هر نشست کامل گرفته می‌شود و کش می‌ماند؛
+    // پیام‌های جدید با WS جریان دارند. باز کردن مکرر چت دیگر fetch نمی‌کند.
+    if (_messagesByPeer.containsKey(username)) return;
     try {
       final data = await api.fetchMessages(username);
       final list = (data['messages'] as List?) ?? [];
@@ -559,13 +562,18 @@ class AppState extends ChangeNotifier {
   void _ingestMessage(ChatMessage msg) {
     if (msg.groupId != null) {
       final list = _messagesByGroup.putIfAbsent(msg.groupId!, () => []);
-      list.removeWhere((m) => m.id.startsWith('local_') && m.text == msg.text && m.from == msg.from);
+      // idempotent: پیام تکراری (همان id) و نسخه‌ی موقتِ local_ حذف می‌شوند
+      list.removeWhere(
+          (m) => m.id == msg.id ||
+              (m.id.startsWith('local_') && m.text == msg.text && m.from == msg.from));
       list.add(msg);
     } else {
       final peer = msg.from == currentUsername ? msg.to : msg.from;
       if (peer == null) return;
       final list = _messagesByPeer.putIfAbsent(peer, () => []);
-      list.removeWhere((m) => m.id.startsWith('local_') && m.text == msg.text && m.from == msg.from);
+      list.removeWhere(
+          (m) => m.id == msg.id ||
+              (m.id.startsWith('local_') && m.text == msg.text && m.from == msg.from));
       list.add(msg);
     }
   }

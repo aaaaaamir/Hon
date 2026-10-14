@@ -113,8 +113,22 @@ class ApiService {
 
   // ---------------- Profile ----------------
 
-  Future<Map<String, dynamic>> fetchProfile(String username) {
-    return _get('/api/profile?username=${Uri.encodeQueryComponent(username)}');
+  /// کش پروفایل کاربران — تا مهلتش تمام نشده، هر بار از سرور نمی‌گیرد.
+  /// فقط وقتی کش قدیمی‌تر از مهلت باشد (یا force=true) درخواست جدید می‌رود.
+  static const Duration _profileTtl = Duration(minutes: 10);
+  final Map<String, Map<String, dynamic>> _profileCache = {};
+  final Map<String, DateTime> _profileCacheAt = {};
+
+  Future<Map<String, dynamic>> fetchProfile(String username, {bool force = false}) async {
+    final cached = _profileCache[username];
+    final at = _profileCacheAt[username];
+    if (!force && cached != null && at != null) {
+      if (DateTime.now().difference(at) < _profileTtl) return cached;
+    }
+    final data = await _get('/api/profile?username=${Uri.encodeQueryComponent(username)}');
+    _profileCache[username] = data;
+    _profileCacheAt[username] = DateTime.now();
+    return data;
   }
 
   Future<Map<String, dynamic>> updateProfile({
@@ -122,13 +136,17 @@ class ApiService {
     String? displayName,
     String? bio,
     String? avatar,
-  }) {
-    return _post('/api/profile/update', {
+  }) async {
+    final result = await _post('/api/profile/update', {
       'username': username,
       if (displayName != null) 'displayName': displayName,
       if (bio != null) 'bio': bio,
       if (avatar != null) 'avatar': avatar,
     });
+    // بعد از ذخیره‌ی تغییرات، کش پروفایل نامعتبر می‌شود
+    _profileCache.remove(username);
+    _profileCacheAt.remove(username);
+    return result;
   }
 
   // ---------------- Messages ----------------

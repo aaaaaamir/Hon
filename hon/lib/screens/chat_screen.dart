@@ -6,6 +6,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
 import '../widgets/emoji_picker.dart';
+import '../widgets/message_actions.dart';
 import '../widgets/message_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -153,7 +154,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         imageUrlBuilder: m.image?.id != null
                             ? () => state.imageUrl(m.image!.id!)
                             : null,
-                        onReply: () => setState(() => replyTo = m),
+                        onTap: () => _showMessageActions(context, m),
                         onLongPress: () => _showMessageActions(context, m),
                       );
                     },
@@ -258,36 +259,14 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  /// تپ/نگه‌داشتن روی پیام → منوی عملیات (کپی، پاسخ، حذف) — مثل وب
   void _showMessageActions(BuildContext context, ChatMessage m) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.reply_rounded, color: AppColors.accent),
-              title: const Text('پاسخ'),
-              onTap: () {
-                Navigator.pop(ctx);
-                setState(() => replyTo = m);
-              },
-            ),
-            if (m.isMine(context.read<AppState>().currentUsername ?? ''))
-              ListTile(
-                leading: const Icon(Icons.delete_outline_rounded, color: AppColors.red),
-                title: const Text('حذف پیام'),
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  await context.read<AppState>().api.deleteMessage(m.id);
-                },
-              ),
-          ],
-        ),
-      ),
+    showMessageActionsSheet(
+      context,
+      m,
+      isMine: m.isMine(context.read<AppState>().currentUsername ?? ''),
+      onReply: () => setState(() => replyTo = m),
+      onDelete: (id) => context.read<AppState>().api.deleteMessage(id),
     );
   }
 
