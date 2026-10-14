@@ -254,6 +254,37 @@ class AppState extends ChangeNotifier {
   List<ChatMessage> messagesForGroup(String groupId) =>
       _messagesByGroup[groupId] ?? const [];
 
+  // ---------------- Group members ----------------
+  // لیست اعضای هر گروه کش می‌شود؛ پنجره‌ی «اعضا» فقط وقتی مهلتش تمام شده
+  // دوباره از سرور می‌گیرد (اعضا ممکن است تغییر کنند → مهلت کوتاه).
+  static const Duration _membersTtl = Duration(seconds: 60);
+  final Map<String, List<GroupMember>> _groupMembers = {};
+  final Map<String, DateTime> _groupMembersAt = {};
+
+  List<GroupMember> membersForGroup(String groupId) =>
+      _groupMembers[groupId] ?? const [];
+
+  Future<void> refreshGroupMembers(String groupId) async {
+    if (currentUsername == null) return;
+    final at = _groupMembersAt[groupId];
+    if (_groupMembers.containsKey(groupId) && at != null &&
+        DateTime.now().difference(at) < _membersTtl) {
+      return;
+    }
+    try {
+      final data = await api.groupInfo(currentUsername!, groupId);
+      final list = (data['members'] as List?) ?? [];
+      _groupMembers[groupId] = list
+          .where((e) => e is Map)
+          .map((e) => GroupMember.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+      _groupMembersAt[groupId] = DateTime.now();
+      notifyListeners();
+    } catch (_) {
+      // آفلاین؛ لیست کش‌شده (اگر باشد) باقی می‌ماند
+    }
+  }
+
   Future<void> openChat(String username) async {
     activeChatUser = username;
     activeGroupId = null;
@@ -295,6 +326,15 @@ class AppState extends ChangeNotifier {
       if (gi >= 0 && data['memberCount'] is int) {
         groups[gi].memberCount = data['memberCount'] as int;
         groups[gi].onlineCount = (data['onlineCount'] as int?) ?? groups[gi].onlineCount;
+      }
+      // اگر سرور لیست اعضا را هم فرستاده، همین‌جا کش می‌شود
+      final ml = data['members'];
+      if (ml is List) {
+        _groupMembers[groupId] = ml
+            .where((e) => e is Map)
+            .map((e) => GroupMember.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        _groupMembersAt[groupId] = DateTime.now();
       }
       notifyListeners();
     } catch (_) {}
