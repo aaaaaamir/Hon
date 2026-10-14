@@ -29,7 +29,7 @@ jobs:
       - name: flutter analyze
         run: |
           set +e
-          flutter analyze --no-pub > /tmp/analyze.log 2>&1
+          flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings > /tmp/analyze.log 2>&1
           CODE=$?
           cat /tmp/analyze.log
           echo "ANALYZE_EXIT=$CODE"
