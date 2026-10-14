@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config.dart';
 import '../theme.dart';
 
 class UserAvatar extends StatelessWidget {
@@ -15,8 +16,17 @@ class UserAvatar extends StatelessWidget {
     this.online = false,
   });
 
+  /// اگر آدرس تصویر نسبی باشد، دامنه‌ی سرور جلویش اضافه می‌شود.
+  String? _resolvedUrl() {
+    final raw = imageUrl?.trim() ?? '';
+    if (raw.isEmpty) return null;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    return '${AppConfig.baseUrl}${raw.startsWith('/') ? '' : '/'}$raw';
+  }
+
   @override
   Widget build(BuildContext context) {
+    final resolvedUrl = _resolvedUrl();
     final initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?';
     return SizedBox(
       width: size,
@@ -29,13 +39,13 @@ class UserAvatar extends StatelessWidget {
             height: size,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: imageUrl == null ? AppColors.accentGradient : null,
-              image: imageUrl != null
-                  ? DecorationImage(image: NetworkImage(imageUrl!), fit: BoxFit.cover)
+              gradient: resolvedUrl == null ? AppColors.accentGradient : null,
+              image: resolvedUrl != null
+                  ? DecorationImage(image: NetworkImage(resolvedUrl), fit: BoxFit.cover)
                   : null,
             ),
             alignment: Alignment.center,
-            child: imageUrl == null
+            child: resolvedUrl == null
                 ? Text(
                     initial,
                     style: TextStyle(

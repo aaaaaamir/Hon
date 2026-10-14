@@ -35,14 +35,20 @@ class AppNotification {
         read: json['read'] == true,
       );
 
+  /// آیا این اعلان مربوط به رد شدن یک درخواست مخاطب است؟
+  bool get isReject =>
+      type.contains('reject') || type.contains('decline') || type.contains('refuse');
+
   String get label {
-    switch (type) {
-      case 'contact_request':
-        return '${from ?? ''} درخواست مخاطب فرستاد';
-      case 'contact_accept':
-        return '${from ?? ''} درخواست شما را پذیرفت';
-      default:
-        return 'اعلان جدید';
+    if (type == 'contact_request') {
+      return '${from ?? ''} درخواست مخاطب فرستاد';
     }
+    if (type == 'contact_accept') {
+      return '${from ?? ''} درخواست شما را پذیرفت';
+    }
+    if (isReject) {
+      return '${from ?? ''} درخواست شما را رد کرد';
+    }
+    return 'اعلان جدید';
   }
 }

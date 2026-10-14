@@ -5,6 +5,7 @@ import '../models/message.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/avatar.dart';
+import '../widgets/emoji_picker.dart';
 import '../widgets/message_bubble.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final textCtrl = TextEditingController();
   final scrollCtrl = ScrollController();
+  final focusNode = FocusNode();
   final ImagePicker _picker = ImagePicker();
   ChatMessage? replyTo;
 
@@ -35,6 +37,7 @@ class _ChatScreenState extends State<ChatScreen> {
     context.read<AppState>().closeChat();
     textCtrl.dispose();
     scrollCtrl.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -85,33 +88,37 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
-        title: Row(
-          children: [
-            UserAvatar(name: displayName, size: 36, online: isOnline),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(displayName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 150),
-                    child: isTyping
-                        ? const Text('در حال نوشتن...',
-                            key: ValueKey('typing'),
-                            style: TextStyle(fontSize: 11.5, color: AppColors.accent))
-                        : Text(
-                            blocked ? 'بلاک شده' : (isOnline ? 'آنلاین' : 'آفلاین'),
-                            key: const ValueKey('status'),
-                            style: TextStyle(
-                                fontSize: 11.5, color: blocked ? AppColors.red : AppColors.muted),
-                          ),
-                  ),
-                ],
+        // مثل وب: لمس روی عنوان، کارت پروفایل کاربر را باز می‌کند.
+        title: InkWell(
+          onTap: () => _showProfileSheet(context),
+          child: Row(
+            children: [
+              UserAvatar(name: displayName, size: 36, online: isOnline),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(displayName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      child: isTyping
+                          ? const Text('در حال نوشتن...',
+                              key: ValueKey('typing'),
+                              style: TextStyle(fontSize: 11.5, color: AppColors.accent))
+                          : Text(
+                              blocked ? 'بلاک شده' : (isOnline ? 'آنلاین' : 'آفلاین'),
+                              key: const ValueKey('status'),
+                              style: TextStyle(
+                                  fontSize: 11.5, color: blocked ? AppColors.red : AppColors.muted),
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           PopupMenuButton<String>(
@@ -132,7 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: messages.isEmpty
                 ? const Center(
-                    child: Text('هنوز پیامی رد و بدل نشده', style: TextStyle(color: AppColors.muted)),
+                    child: Text('این اولین پیام از این کاربره.', style: TextStyle(color: AppColors.muted)),
                   )
                 : ListView.builder(
                     controller: scrollCtrl,
@@ -154,10 +161,29 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           if (replyTo != null) _replyBar(),
           if (blocked)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('این کاربر را بلاک کرده‌اید؛ پیام‌های جدید ارسال نمی‌شود',
-                  style: TextStyle(color: AppColors.red, fontSize: 12)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.red.withOpacity(0.4)),
+                ),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text('شما این کاربر را بلاک کرده‌اید.',
+                          style: TextStyle(color: AppColors.red, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    ),
+                    TextButton(
+                      onPressed: () => state.toggleBlock(widget.username),
+                      child: const Text('آنبلاک',
+                          style: TextStyle(color: AppColors.text, fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+              ),
             )
           else
             _inputBar(),
@@ -200,6 +226,7 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
         child: Row(
           children: [
+            EmojiButton(controller: textCtrl),
             IconButton(
               icon: const Icon(Icons.image_outlined, color: AppColors.muted),
               onPressed: _pickImage,
@@ -207,6 +234,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Expanded(
               child: TextField(
                 controller: textCtrl,
+                focusNode: focusNode,
                 textAlign: TextAlign.right,
                 minLines: 1,
                 maxLines: 5,
@@ -258,6 +286,120 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// کارت پروفایل کاربر — مثل بخش «پروفایل» در وب:
+  /// آواتار، نام، بیو، نشان «مهمان — ثبت‌نام‌نشده» و دکمه‌های
+  /// «ارسال پیام» و «گزارش این کاربر».
+  Future<void> _showProfileSheet(BuildContext context) async {
+    final state = context.read<AppState>();
+    Map<String, dynamic>? profile;
+    try {
+      profile = await state.api.fetchProfile(widget.username);
+    } catch (_) {
+      // آفلاین؛ با همان اطلاعات محلی نمایش داده می‌شود
+    }
+    if (!context.mounted) return;
+
+    final displayName =
+        (profile?['displayName']?.toString() ?? '').trim().isNotEmpty
+            ? profile!['displayName'].toString()
+            : widget.username;
+    final bio = (profile?['bio']?.toString() ?? '').trim();
+    final avatarUrl = profile?['avatarUrl']?.toString();
+    final isGuest = profile?['isGuest'] == true;
+    final blocked = state.isBlocked(widget.username);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(child: UserAvatar(name: displayName, imageUrl: avatarUrl, size: 84)),
+              const SizedBox(height: 12),
+              Center(
+                child: Text(displayName,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              ),
+              const SizedBox(height: 2),
+              Center(
+                child: Text('@${widget.username}',
+                    style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
+              ),
+              if (isGuest) ...[
+                const SizedBox(height: 6),
+                const Text('👤 مهمان — ثبت‌نام‌نشده',
+                    style: TextStyle(fontSize: 12, color: AppColors.orange)),
+              ],
+              if (bio.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(bio,
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.accentGradient,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          focusNode.requestFocus();
+                        },
+                        child: const Text('ارسال پیام'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.text,
+                        side: const BorderSide(color: AppColors.line),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.campaign_outlined, size: 18),
+                      label: const Text('گزارش این کاربر'),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showReportSheet(context);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () {
+                  final s = context.read<AppState>();
+                  s.toggleBlock(widget.username);
+                  Navigator.pop(ctx);
+                },
+                child: Text(blocked ? 'آنبلاک' : 'بلاک کردن',
+                    style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
         ),
       ),
     );

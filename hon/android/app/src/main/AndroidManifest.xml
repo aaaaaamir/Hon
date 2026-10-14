@@ -4,11 +4,16 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- (اختیاری) برای بررسی وضعیت شبکه -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- برای ذخیره عکس پروفایل در گوشی (فقط اندروید ۸ و قدیمی‌تر) -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
 
     <application
         android:label="hon"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
