@@ -2,7 +2,7 @@ name: Analyze
 
 on:
   push:
-    branches: [ "arena/bfd79ef4-hon" ]
+    branches: [ "arena/a6874564-hon" ]
   workflow_dispatch:
 
 jobs:
