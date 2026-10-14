@@ -239,7 +239,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           child: Container(
                             width: 34,
                             height: 34,
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               gradient: AppColors.accentGradient,
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
