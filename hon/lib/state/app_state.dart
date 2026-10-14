@@ -11,6 +11,7 @@ import '../models/notification_item.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/ws_service.dart';
+import '../utils/format.dart';
 
 enum AuthStatus { unknown, loggedOut, loggedIn }
 
@@ -50,12 +51,40 @@ class AppState extends ChangeNotifier {
 
   WsConnectionState connectionState = WsConnectionState.disconnected;
 
+  /// تاخیر اتصال (RTT) به‌میلی‌ثانیه؛ null یعنی هنوز اندازه‌گیری نشده.
+  int? latencyMs;
+
+  // ---------------- پروفایل خود کاربر (مطابق /api/profile) ----------------
+
+  String? myDisplayName;
+  String? myBio;
+  String? myAvatarUrl;
+  bool isGuestAccount = false;
+
+  /// متن وضعیت اتصال برای نمایش در UI (مثل «در حال اندازه‌گیری...» در وب).
+  String get connectionLabel {
+    switch (connectionState) {
+      case WsConnectionState.connecting:
+        return 'در حال اتصال...';
+      case WsConnectionState.disconnected:
+        return 'قطع';
+      case WsConnectionState.connected:
+        return latencyMs == null
+            ? 'در حال اندازه‌گیری...'
+            : '${toFa(latencyMs!)} میلی‌ثانیه';
+    }
+  }
+
   AppState() {
     ws.connectionState.listen((s) {
       connectionState = s;
       notifyListeners();
     });
     ws.messages.listen(_handleWsMessage);
+    ws.latency.listen((ms) {
+      latencyMs = ms;
+      notifyListeners();
+    });
     _restoreSession();
   }
 
@@ -84,6 +113,7 @@ class AppState extends ChangeNotifier {
       await refreshConversations();
       await refreshContacts();
       await refreshNotifications();
+      await refreshMyProfile();
     } else {
       authStatus = AuthStatus.loggedOut;
       notifyListeners();
@@ -121,6 +151,7 @@ class AppState extends ChangeNotifier {
       _startRealtime();
       refreshContacts();
       refreshNotifications();
+      refreshMyProfile();
       return true;
     } on ApiException catch (e) {
       if (isLogin && e.reason == 'not_found') {
@@ -152,6 +183,11 @@ class AppState extends ChangeNotifier {
     await storage.clearSession();
     currentUsername = null;
     _authToken = null;
+    myDisplayName = null;
+    myBio = null;
+    myAvatarUrl = null;
+    isGuestAccount = false;
+    latencyMs = null;
     conversations.clear();
     groups.clear();
     _messagesByPeer.clear();
@@ -606,6 +642,117 @@ class AppState extends ChangeNotifier {
     final id = data['id']?.toString();
     return groups.firstWhere((g) => g.id == id,
         orElse: () => GroupConversation(id: id ?? '', name: data['name']?.toString() ?? 'گروه'));
+  }
+
+  // ---------------- پروفایل خود کاربر ----------------
+
+  Future<void> refreshMyProfile() async {
+    if (currentUsername == null) return;
+    try {
+      final data = await api.fetchProfile(currentUsername!);
+      final dn = data['displayName']?.toString() ?? '';
+      final bio = data['bio']?.toString() ?? '';
+      myDisplayName = dn.trim().isEmpty ? null : dn;
+      myBio = bio.trim().isEmpty ? null : bio;
+      myAvatarUrl = (data['avatarUrl']?.toString() ?? '').trim().isEmpty
+          ? null
+          : data['avatarUrl']?.toString();
+      isGuestAccount = data['isGuest'] == true;
+      notifyListeners();
+    } catch (_) {
+      // آفلاین؛ مقادیر قبلی باقی می‌ماند
+    }
+  }
+
+  /// تغییر شناسه‌ی کاربری، مطابق فرم وب:
+  /// «تغییر شناسه‌ی کاربری» + «رمز عبور فعلی (برای تأیید)».
+  /// مقدار برگشتی: پیام خطا (یا null اگر موفق بود).
+  Future<String?> changeUsername(String newUsername, String password) async {
+    final old = currentUsername;
+    if (old == null) return 'نشست معتبر نیست';
+    try {
+      final data = await api.changeUsername(
+        username: old,
+        newUsername: newUsername,
+        password: password,
+      );
+      final token = data['token']?.toString() ?? _authToken;
+      if (token == null) {
+        return 'پاسخ سرور نامعتبر بود';
+      }
+      _authToken = token;
+      api.setToken(token);
+      currentUsername = newUsername;
+      await storage.saveSession(username: newUsername, token: token);
+      // اتصال WS با شناسه‌ی جدید دوباره ثبت می‌شود
+      ws.disconnect();
+      _startRealtime();
+      await refreshConversations();
+      await refreshContacts();
+      await refreshNotifications();
+      await refreshMyProfile();
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    } catch (_) {
+      return 'خطا در اتصال به سرور';
+    }
+  }
+
+  /// تغییر عکس پروفایل، مطابق بخش «تغییر عکس پروفایل» در وب.
+  /// چون سرور آپلود جداگانه‌ی قابل‌اطمینان ندارد، دو استراتژی به‌ترتیب
+  /// امتحان می‌شود و در هر دو، نتیجه با دوباره‌خواندن پروفایل
+  /// تأیید می‌شود:
+  ///   ۱) ارسال base64 مستقیم در /api/profile/update (کلید avatar)
+  ///   ۲) آپلود از طریق /api/chat-image/upload و ارجاع imageId
+  Future<String?> changeAvatar(XFile file) async {
+    final me = currentUsername;
+    if (me == null) return 'نشست معتبر نیست';
+    try {
+      final bytes = await file.readAsBytes();
+      final dataUrl = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      final oldAvatar = myAvatarUrl;
+
+      try {
+        await api.updateProfile(
+          username: me,
+          avatar: dataUrl,
+        );
+        await refreshMyProfile();
+        if (myAvatarUrl != null && myAvatarUrl != oldAvatar) {
+          await refreshConversations();
+          return null;
+        }
+      } catch (_) {}
+
+      try {
+        final up = await api.uploadChatImage(username: me, imageBase64: dataUrl);
+        final imageId = up['imageId']?.toString();
+        if (imageId != null) {
+          await api.updateProfile(username: me, avatar: imageId);
+          await refreshMyProfile();
+          if (myAvatarUrl != null && myAvatarUrl != oldAvatar) {
+            await refreshConversations();
+            return null;
+          }
+        }
+      } catch (_) {}
+
+      return 'تغییر عکس پروفایل انجام نشد';
+    } catch (_) {
+      return 'خطا در آپلود عکس';
+    }
+  }
+
+  /// دانلود بایت‌های عکس پروفایل فعلی (برای «ذخیره در گوشی»).
+  Future<List<int>?> downloadMyAvatarBytes() async {
+    final url = myAvatarUrl;
+    if (url == null) return null;
+    try {
+      return await api.downloadBytes(url);
+    } catch (_) {
+      return null;
+    }
   }
 
   // ---------------- Block ----------------

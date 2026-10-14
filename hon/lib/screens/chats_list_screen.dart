@@ -55,6 +55,16 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
             ),
             const SizedBox(width: 8),
             _connectionDot(state.connectionState),
+            const SizedBox(width: 6),
+            // مثل وب: وضعیت اتصال + تاخیر (میلی‌ثانیه) کنار عنوان
+            Flexible(
+              child: Text(
+                state.connectionLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 11, color: AppColors.muted),
+              ),
+            ),
           ],
         ),
       ),

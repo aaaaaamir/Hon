@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/message.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/emoji_picker.dart';
 import '../widgets/message_bubble.dart';
 import 'group_info_screen.dart';
 
@@ -122,7 +123,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           Expanded(
             child: messages.isEmpty
                 ? const Center(
-                    child: Text('هنوز پیامی در گروه نیست', style: TextStyle(color: AppColors.muted)))
+                    child: Text('این اولین پیام این گروهه.', style: TextStyle(color: AppColors.muted)))
                 : ListView.builder(
                     controller: scrollCtrl,
                     padding: const EdgeInsets.symmetric(vertical: 10),
@@ -183,6 +184,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
         child: Row(
           children: [
+            EmojiButton(controller: textCtrl),
             IconButton(
               icon: const Icon(Icons.image_outlined, color: AppColors.muted),
               onPressed: _pickImage,

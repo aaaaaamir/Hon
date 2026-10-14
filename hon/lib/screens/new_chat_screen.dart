@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../utils/format.dart';
 import '../widgets/avatar.dart';
 import 'chat_screen.dart';
 
@@ -72,6 +73,19 @@ class _NewChatScreenState extends State<NewChatScreen> {
             ),
           ),
           if (loading) const LinearProgressIndicator(minHeight: 2),
+          if (results.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+              child: Row(
+                children: [
+                  const Text('کاربران یافت‌شده',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 6),
+                  Text(toFa(results.length),
+                      style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
           Expanded(
             child: results.isEmpty
                 ? const Center(

@@ -121,11 +121,13 @@ class ApiService {
     required String username,
     String? displayName,
     String? bio,
+    String? avatar,
   }) {
     return _post('/api/profile/update', {
       'username': username,
       if (displayName != null) 'displayName': displayName,
       if (bio != null) 'bio': bio,
+      if (avatar != null) 'avatar': avatar,
     });
   }
 
@@ -293,10 +295,22 @@ class ApiService {
   Future<Map<String, dynamic>> changeUsername({
     required String username,
     required String newUsername,
+    String? password,
   }) {
+    // مطابق فرم وب: «رمز عبور فعلی (برای تأیید)»
     return _post('/api/change-username', {
       'username': username,
       'newUsername': newUsername,
+      if (password != null && password.isNotEmpty) 'password': password,
     });
+  }
+
+  /// دانلود بایت‌های یک فایل از آدرس کامل (مثلاً عکس پروفایل برای «ذخیره در گوشی»).
+  Future<List<int>> downloadBytes(String url) async {
+    final res = await http.get(Uri.parse(url));
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw ApiException('دانلود ناموفق بود');
+    }
+    return res.bodyBytes;
   }
 }

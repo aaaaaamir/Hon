@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../utils/format.dart';
 import '../widgets/avatar.dart';
 import 'chat_screen.dart';
 
@@ -97,6 +98,19 @@ class _ContactsScreenState extends State<ContactsScreen> {
             ),
           ),
           if (searching) const LinearProgressIndicator(minHeight: 2),
+          if (searchResults.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
+              child: Row(
+                children: [
+                  const Text('کاربران یافت‌شده',
+                      style: TextStyle(color: AppColors.muted, fontSize: 12, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 6),
+                  Text(toFa(searchResults.length),
+                      style: const TextStyle(color: AppColors.accent, fontSize: 12, fontWeight: FontWeight.w800)),
+                ],
+              ),
+            ),
           if (searchResults.isNotEmpty)
             ...searchResults.map((u) => ListTile(
                   leading: UserAvatar(name: u, size: 40),

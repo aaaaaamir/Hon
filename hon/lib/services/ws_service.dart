@@ -7,6 +7,10 @@ enum WsConnectionState { connecting, connected, disconnected }
 
 /// اتصال زنده به سرور برای پیام‌های لحظه‌ای، وضعیت آنلاین، تایپینگ و غیره.
 /// با قطعی شبکه خودکار دوباره وصل می‌شود.
+///
+/// مثل نسخه‌ی وب (index.html)، هر ۲۵ ثانیه یک ping می‌فرستد و اگر سرور
+/// پاسخ دهد (pong یا تکرار `t`)، تاخیر اتصال (RTT) محاسبه و روی جریان
+/// [latency] سرازیر می‌شود تا در UI به‌صورت «…میلی‌ثانیه» نمایش داده شود.
 class WsService {
   WebSocketChannel? _channel;
   StreamSubscription? _sub;
@@ -15,15 +19,22 @@ class WsService {
 
   final _stateController = StreamController<WsConnectionState>.broadcast();
   final _messageController = StreamController<Map<String, dynamic>>.broadcast();
+  final _latencyController = StreamController<int>.broadcast();
 
   Stream<WsConnectionState> get connectionState => _stateController.stream;
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
+
+  /// تاخیر هر بار که یک ping جواب گرفت (بر حسب میلی‌ثانیه).
+  Stream<int> get latency => _latencyController.stream;
 
   String? _username;
   String? _token;
   String? _deviceId;
   int _lastMessageTimestamp = 0;
   bool _closedByUser = false;
+
+  /// زمان ارسال ping در انتظار پاسخ (null = ping در انتظار نیست).
+  int? _pendingPingAt;
 
   void connect({
     required String username,
@@ -36,6 +47,7 @@ class WsService {
     _deviceId = deviceId;
     _lastMessageTimestamp = lastMessageTimestamp;
     _closedByUser = false;
+    _pendingPingAt = null;
     _open();
   }
 
@@ -71,7 +83,21 @@ class WsService {
     try {
       final data = jsonDecode(raw as String);
       if (data is Map<String, dynamic>) {
-        if (data['type'] == 'chat_message' &&
+        // --- اندازه‌گیری تاخیر: سرور یا `pong` می‌فرستد یا `t` خود ping را
+        // تکرار می‌کند؛ هر دو حالت را می‌پذیریم.
+        final String? type = data['type']?.toString();
+        if (type == 'pong' || data['t'] == _pendingPingAt) {
+          final sentAt = _pendingPingAt;
+          _pendingPingAt = null;
+          if (sentAt != null) {
+            final rtt = DateTime.now().millisecondsSinceEpoch - sentAt;
+            if (rtt >= 0 && rtt < 30000) {
+              _latencyController.add(rtt);
+            }
+          }
+        }
+
+        if (type == 'chat_message' &&
             data['timestamp'] is int &&
             (data['timestamp'] as int) > _lastMessageTimestamp) {
           _lastMessageTimestamp = data['timestamp'] as int;
@@ -85,6 +111,7 @@ class WsService {
 
   void _onClosed() {
     _pingTimer?.cancel();
+    _pendingPingAt = null;
     _stateController.add(WsConnectionState.disconnected);
     if (!_closedByUser) _scheduleReconnect();
   }
@@ -98,8 +125,17 @@ class WsService {
 
   void _startPing() {
     _pingTimer?.cancel();
-    _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
-      send({'type': 'ping'});
+    // مثل وب: بلافاصله پس از اتصال یک ping بفرست تا تاخیر زودتر معلوم شود.
+    _sendPing();
+    _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) => _sendPing());
+  }
+
+  void _sendPing() {
+    if (_pendingPingAt != null) return; // ping قبلی هنوز جواب نگرفته
+    _pendingPingAt = DateTime.now().millisecondsSinceEpoch;
+    send({
+      'type': 'ping',
+      't': _pendingPingAt,
     });
   }
 
@@ -138,6 +174,7 @@ class WsService {
     _closedByUser = true;
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
+    _pendingPingAt = null;
     _sub?.cancel();
     _channel?.sink.close();
   }
