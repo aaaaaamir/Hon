@@ -1,5 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../config.dart';
@@ -17,6 +18,10 @@ class EditProfileScreen extends StatefulWidget {
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
+
+/// ذخیره در گالری از طریق کد بومی اندروید (بدون پلاگین)؛
+/// پیاده‌سازی در MainActivity.kt با MediaStore.
+const MethodChannel _galleryChannel = MethodChannel('com.example.hon/gallery');
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _picker = ImagePicker();
@@ -129,10 +134,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _snack('دانلود عکس ناموفق بود');
       return;
     }
-    final saved = await ImageGallerySaver.saveImage(bytes);
+    final saved = await _saveToGallery(bytes);
     if (!mounted) return;
     setState(() => savingToPhone = false);
-    _snack(saved == true ? 'در گوشی ذخیره شد' : 'ذخیره در گوشی انجام نشد');
+    _snack(saved ? 'در گوشی ذخیره شد' : 'ذخیره در گوشی انجام نشد');
+  }
+
+  /// ذخیره از طریق کانال بومی (MediaStore در MainActivity).
+  Future<bool> _saveToGallery(List<int> bytes) async {
+    try {
+      final result = await _galleryChannel.invokeMethod<bool>('saveImageToGallery', {
+        'data': base64Encode(bytes),
+        'name': 'hon_profile_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      });
+      return result == true;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
   }
 
   // ---------------- ذخیره تغییرات ----------------
