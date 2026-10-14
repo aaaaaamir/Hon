@@ -8,6 +8,7 @@ import '../widgets/avatar.dart';
 import '../widgets/emoji_picker.dart';
 import '../widgets/message_actions.dart';
 import '../widgets/message_bubble.dart';
+import '../widgets/profile_sheet.dart';
 
 class ChatScreen extends StatefulWidget {
   final String username;
@@ -270,153 +271,16 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  /// کارت پروفایل کاربر — مثل بخش «پروفایل» در وب:
-  /// آواتار، نام، بیو، نشان «مهمان — ثبت‌نام‌نشده» و دکمه‌های
-  /// «ارسال پیام» و «گزارش این کاربر».
+  /// کارت پروفایل کاربر — مثل بخش «پروفایل» در وب (ویجت مشترک)
   Future<void> _showProfileSheet(BuildContext context) async {
-    final state = context.read<AppState>();
-    Map<String, dynamic>? profile;
-    try {
-      profile = await state.api.fetchProfile(widget.username);
-    } catch (_) {
-      // آفلاین؛ با همان اطلاعات محلی نمایش داده می‌شود
-    }
-    if (!context.mounted) return;
-
-    final displayName =
-        (profile?['displayName']?.toString() ?? '').trim().isNotEmpty
-            ? profile!['displayName'].toString()
-            : widget.username;
-    final bio = (profile?['bio']?.toString() ?? '').trim();
-    final avatarUrl = profile?['avatarUrl']?.toString();
-    final isGuest = profile?['isGuest'] == true;
-    final blocked = state.isBlocked(widget.username);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppColors.card,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(child: UserAvatar(name: displayName, imageUrl: avatarUrl, size: 84)),
-              const SizedBox(height: 12),
-              Center(
-                child: Text(displayName,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              ),
-              const SizedBox(height: 2),
-              Center(
-                child: Text('@${widget.username}',
-                    style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
-              ),
-              if (isGuest) ...[
-                const SizedBox(height: 6),
-                const Text('👤 مهمان — ثبت‌نام‌نشده',
-                    style: TextStyle(fontSize: 12, color: AppColors.orange)),
-              ],
-              if (bio.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(bio,
-                    textAlign: TextAlign.center,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: AppColors.muted)),
-              ],
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Expanded(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: AppColors.accentGradient,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          focusNode.requestFocus();
-                        },
-                        child: const Text('ارسال پیام'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.text,
-                        side: const BorderSide(color: AppColors.line),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      icon: const Icon(Icons.campaign_outlined, size: 18),
-                      label: const Text('گزارش این کاربر'),
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _showReportSheet(context);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () {
-                  final s = context.read<AppState>();
-                  s.toggleBlock(widget.username);
-                  Navigator.pop(ctx);
-                },
-                child: Text(blocked ? 'آنبلاک' : 'بلاک کردن',
-                    style: const TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
-              ),
-            ],
-          ),
-        ),
-      ),
+    await showUserProfileSheet(
+      context,
+      widget.username,
+      onMessage: (ctx) => focusNode.requestFocus(),
     );
   }
 
-  void _showReportSheet(BuildContext context) {
-    final reasonCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.card,
-        title: const Text('گزارش کاربر'),
-        content: TextField(
-          controller: reasonCtrl,
-          textAlign: TextAlign.right,
-          decoration: const InputDecoration(hintText: 'دلیل گزارش را بنویسید'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
-          TextButton(
-            onPressed: () async {
-              final s = context.read<AppState>();
-              await s.api.report(
-                username: s.currentUsername!,
-                target: widget.username,
-                reason: reasonCtrl.text.trim(),
-              );
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('گزارش ارسال شد')),
-                );
-              }
-            },
-            child: const Text('ارسال'),
-          ),
-        ],
-      ),
-    );
-  }
+  /// دیالوگ گزارش کاربر (مشترک)
+  void _showReportSheet(BuildContext context) =>
+      showReportUserSheet(context, widget.username);
 }
