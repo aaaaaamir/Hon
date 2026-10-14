@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-import '../config.dart';
 import '../models/conversation.dart';
 import '../models/group.dart';
 import '../models/message.dart';

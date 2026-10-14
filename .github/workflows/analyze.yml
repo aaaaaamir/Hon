@@ -33,6 +33,7 @@ jobs:
           CODE=$?
           cat /tmp/analyze.log
           echo "ANALYZE_EXIT=$CODE"
+          echo "ANALYZE_EXIT=$CODE" >> /tmp/analyze.log
           exit $CODE
 
       - name: annotate analyze errors
@@ -69,6 +70,7 @@ jobs:
           echo "---- build log tail ----"
           tail -n 60 /tmp/build.log
           echo "BUILD_EXIT=$CODE"
+          echo "BUILD_EXIT=$CODE" >> /tmp/build.log
           exit $CODE
 
       - name: annotate build errors
