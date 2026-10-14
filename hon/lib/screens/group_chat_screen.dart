@@ -5,6 +5,7 @@ import '../models/message.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/emoji_picker.dart';
+import '../widgets/message_actions.dart';
 import '../widgets/message_bubble.dart';
 import 'group_info_screen.dart';
 
@@ -52,6 +53,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     textCtrl.clear();
     setState(() => replyTo = null);
     Future.delayed(const Duration(milliseconds: 60), _scrollToBottom);
+  }
+
+  /// تپ/نگه‌داشتن روی پیام → منوی عملیات (کپی، پاسخ، حذف) — مثل وب
+  void _showMessageActions(BuildContext context, ChatMessage m) {
+    final state = context.read<AppState>();
+    showMessageActionsSheet(
+      context,
+      m,
+      isMine: m.isMine(state.currentUsername ?? ''),
+      onReply: () => setState(() => replyTo = m),
+      onDelete: (id) => state.api.deleteMessage(id),
+    );
   }
 
   Future<void> _pickImage() async {
@@ -138,7 +151,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                         imageUrlBuilder: m.image?.id != null
                             ? () => state.imageUrl(m.image!.id!)
                             : null,
-                        onReply: () => setState(() => replyTo = m),
+                        onTap: () => _showMessageActions(context, m),
+                        onLongPress: () => _showMessageActions(context, m),
                       );
                     },
                   ),

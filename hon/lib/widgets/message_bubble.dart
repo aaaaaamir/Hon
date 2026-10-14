@@ -9,7 +9,7 @@ class MessageBubble extends StatelessWidget {
   final bool isMine;
   final String? senderLabel; // برای گروه: نام فرستنده روی پیام‌های دیگران
   final String Function()? imageUrlBuilder; // آدرس شبکه‌ای عکس، وقتی آپلود کامل شده
-  final VoidCallback? onReply;
+  final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
   const MessageBubble({
@@ -18,7 +18,7 @@ class MessageBubble extends StatelessWidget {
     required this.isMine,
     this.senderLabel,
     this.imageUrlBuilder,
-    this.onReply,
+    this.onTap,
     this.onLongPress,
   });
 
@@ -118,8 +118,8 @@ class MessageBubble extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
         child: GestureDetector(
+          onTap: onTap,
           onLongPress: onLongPress,
-          onDoubleTap: onReply,
           child: bubble,
         ),
       ),
